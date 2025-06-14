@@ -1,4 +1,6 @@
 // lib/metabolic.ts - Core metabolic algorithm
+import { Thought } from '@/types';
+
 export function updateMetabolism(thoughts: Thought[]): Thought[] {
     return thoughts.map(thought => {
       let newAtp = thought.atp;

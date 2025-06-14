@@ -1,3 +1,4 @@
+"use client";
 // app/page.tsx - Main application layout
 import { useState, useEffect } from 'react';
 import ThoughtCapture from '@/components/ThoughtCapture';
@@ -62,6 +63,11 @@ export default function MetabolicMemory() {
         ? { ...t, atp: Math.min(100, t.atp + 20) }
         : t
     ));
+  };
+
+  const reanalyzeConnections = () => {
+    // Placeholder for re-analyzing connections
+    console.log('Re-analyzing connections...');
   };
 
   return (
