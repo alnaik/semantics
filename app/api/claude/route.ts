@@ -23,16 +23,20 @@ export async function POST(request: Request) {
         ).join('\n')}`
       : '';
 
-    const prompt = `Analyze this thought and extract semantic meaning.
+    const prompt = `Extract semantic concepts from this thought and analyze relationships.
 
 New thought: "${text}"${thoughtContext}
 
 Please respond with a JSON object containing:
-1. "tags": An array of 2-5 semantic tags/concepts (single words or short phrases)
-2. "connections": An array of IDs of existing thoughts that are semantically related to this new thought
+1. "tags": An array of 3-5 semantic concepts (single words or short phrases) that represent the core ideas
+2. "relatedTags": An array of tags from existing thoughts that are semantically related
 3. "summary": A one-sentence summary of the core idea
 
-Focus on extracting meaningful concepts, not just keywords. For connections, only include IDs where there's a strong semantic relationship.
+Focus on abstract concepts, themes, and ideas rather than specific keywords. Examples:
+- "learning programming" → tags: ["learning", "skill-development", "technology", "problem-solving"]
+- "feeling stressed about work" → tags: ["stress", "work-pressure", "emotional-state", "productivity"]
+
+For relatedTags, only include existing tags that share conceptual similarity or thematic connection.
 
 Respond ONLY with valid JSON, no additional text.`;
 
@@ -72,7 +76,7 @@ Respond ONLY with valid JSON, no additional text.`;
       const parsed = JSON.parse(content);
       return NextResponse.json({
         tags: parsed.tags || [],
-        connections: parsed.connections || [],
+        relatedTags: parsed.relatedTags || [],
         summary: parsed.summary || ''
       });
     } catch (parseError) {
@@ -80,7 +84,7 @@ Respond ONLY with valid JSON, no additional text.`;
       // Fallback to basic extraction
       return NextResponse.json({
         tags: extractBasicTags(text),
-        connections: [],
+        relatedTags: [],
         summary: text.substring(0, 100)
       });
     }

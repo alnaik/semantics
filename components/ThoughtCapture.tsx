@@ -7,9 +7,10 @@ import { Thought } from '@/types';
 interface ThoughtCaptureProps {
   onAddThought: (text: string) => void;
   thoughts: Thought[];
+  selectedTag?: string | null;
 }
 
-export default function ThoughtCapture({ onAddThought, thoughts }: ThoughtCaptureProps) {
+export default function ThoughtCapture({ onAddThought, thoughts, selectedTag }: ThoughtCaptureProps) {
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
 
@@ -47,15 +48,24 @@ export default function ThoughtCapture({ onAddThought, thoughts }: ThoughtCaptur
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-gray-900 text-white">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-700">
+        <h2 className="text-lg font-semibold">Thought Capture</h2>
+        {selectedTag && (
+          <p className="text-sm text-purple-400 mt-1">Filtering by: {selectedTag}</p>
+        )}
+      </div>
+
       {/* Input Form */}
-      <form onSubmit={handleSubmit} className="mb-4">
-        <div className="flex flex-col gap-2">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="What's on your mind?"
-            className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg resize-none focus:outline-none focus:border-blue-500 text-white"
+      <div className="p-4">
+        <form onSubmit={handleSubmit} className="mb-4">
+          <div className="flex flex-col gap-2">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="What's on your mind?"
+              className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg resize-none focus:outline-none focus:border-purple-500 text-white"
             rows={3}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -67,7 +77,7 @@ export default function ThoughtCapture({ onAddThought, thoughts }: ThoughtCaptur
           <div className="flex gap-2">
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               Add Thought
             </button>
@@ -84,20 +94,20 @@ export default function ThoughtCapture({ onAddThought, thoughts }: ThoughtCaptur
               {isRecording ? '🔴' : '🎤'}
             </button>
           </div>
-        </div>
-      </form>
-
-      {/* Thoughts List */}
-      <div className="flex-1 overflow-y-auto space-y-4">
-        {thoughts.length === 0 ? (
-          <div className="text-center text-gray-500 mt-8">
-            <p>No thoughts yet. Start capturing your ideas!</p>
           </div>
+        </form>
+
+        {/* Thoughts List */}
+        <div className="flex-1 overflow-y-auto space-y-4">
+          {thoughts.length === 0 ? (
+            <div className="text-center text-gray-500 mt-8">
+              <p>{selectedTag ? 'No thoughts for this tag.' : 'No thoughts yet. Start capturing your ideas!'}</p>
+            </div>
         ) : (
           thoughts.map((thought) => (
             <div
               key={thought.id}
-              className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors"
+              className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-purple-600 transition-colors"
             >
               {/* Timestamp Header */}
               <div className="flex items-center justify-between mb-2 text-sm text-gray-400">
@@ -128,7 +138,8 @@ export default function ThoughtCapture({ onAddThought, thoughts }: ThoughtCaptur
               )}
             </div>
           ))
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
