@@ -54,15 +54,17 @@ export default function LivingGraph({ semanticTags, onBoostTag, onSelectTag, onR
       }
     });
 
-    // Create simulation
+    // Create simulation with reduced bouncing
     const simulation = d3.forceSimulation<GraphNode>(semanticTags.map(t => ({...t} as GraphNode)))
       .force('link', d3.forceLink<GraphNode, any>(links)
         .id((d: any) => d.id)
-        .distance(100)
-        .strength((d: any) => d.strength || 0.5))
-      .force('charge', d3.forceManyBody().strength(-300))
+        .distance((d: any) => 80 + (10 - d.strength) * 20) // Weaker connections = farther apart
+        .strength((d: any) => Math.min(0.3, d.strength / 10))) // Reduce link strength for less bouncing
+      .force('charge', d3.forceManyBody().strength(-200)) // Reduced repulsion
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius((d: any) => getNodeRadius(d.atp) + 5));
+      .force('collision', d3.forceCollide().radius((d: any) => getNodeRadius(d.atp) + 10))
+      .alphaDecay(0.02) // Slower settling for smoother movement
+      .velocityDecay(0.8); // Higher friction to reduce bouncing
 
     // Add links
     const link = g.append('g')
@@ -94,7 +96,7 @@ export default function LivingGraph({ semanticTags, onBoostTag, onSelectTag, onR
       .attr('stroke', (d: any) => selectedTag === d.id ? '#8b5cf6' : '#fff')
       .attr('stroke-width', (d: any) => selectedTag === d.id ? 4 : 2);
 
-    // Add primary tag labels
+    // Add primary tag labels - full names
     nodeGroup.append('text')
       .attr('text-anchor', 'middle')
       .attr('dy', 4)
@@ -102,9 +104,7 @@ export default function LivingGraph({ semanticTags, onBoostTag, onSelectTag, onR
       .attr('font-weight', 'bold')
       .attr('fill', 'white')
       .attr('pointer-events', 'none')
-      .text((d: any) => {
-        return d.name.length > 8 ? d.name.substring(0, 8) + '...' : d.name;
-      });
+      .text((d: any) => d.name); // Show full tag name
 
     // Add enhanced tooltip on hover
     const tooltip = g.append('g');
@@ -212,7 +212,7 @@ export default function LivingGraph({ semanticTags, onBoostTag, onSelectTag, onR
         <div className="space-y-1 text-xs text-gray-300">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-            <span>Active (ATP 70-100)</span>
+            <span>Healthy (ATP 70-100)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
@@ -226,6 +226,11 @@ export default function LivingGraph({ semanticTags, onBoostTag, onSelectTag, onR
             <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
             <span>Fossil (ATP &lt;10)</span>
           </div>
+        </div>
+        <div className="mt-2 pt-2 border-t border-gray-600 text-xs text-gray-500">
+          <div>• ATP decays: -0.3/cycle (frequent tags: -0.2)</div>
+          <div>• Connections weaken but persist</div>
+          <div>• Co-mentions strengthen bonds</div>
         </div>
         <div className="mt-2 pt-2 border-t border-gray-600 text-xs text-gray-400">
           <div>Click tag: Filter thoughts & boost ATP</div>

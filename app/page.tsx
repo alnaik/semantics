@@ -93,11 +93,11 @@ export default function Home() {
         
         let newAtp = Math.max(0, tag.atp - atpDecay);
         
-        // Connection decay - weaken unused connections
+        // Connection decay - weaken unused connections but keep them
         const updatedConnections = tag.connections.map(conn => ({
           ...conn,
-          strength: Math.max(0.1, conn.strength - 0.05) // Connections slowly weaken
-        })).filter(conn => conn.strength > 0.1); // Remove very weak connections
+          strength: Math.max(0.5, conn.strength - 0.02) // Connections slowly weaken but never disappear
+        })); // Keep all connections, just weaken them
         
         return {
           ...tag,
