@@ -238,6 +238,7 @@ export default function Home() {
 
     // Try to extract semantics (with error handling)
     try {
+      console.log('🤖 Calling Claude API for thought:', text);
       const response = await fetch('/api/claude', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -251,8 +252,11 @@ export default function Home() {
         })
       });
 
+      console.log('📡 Claude API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('🏷️ Claude extracted data:', data);
         
         // Update the thought with extracted tags
         setThoughts(prev => prev.map(t => 
@@ -266,15 +270,21 @@ export default function Home() {
 
         // Update semantic tags
         if (data.tags && data.tags.length > 0) {
+          console.log('🔗 Creating semantic tags:', data.tags);
           updateSemanticTags(
             newThought.id, 
             data.tags, 
             data.relatedTags || []
           );
+        } else {
+          console.log('❌ No tags returned from Claude');
         }
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Claude API error:', response.status, errorText);
       }
     } catch (error) {
-      console.error('Failed to extract semantics:', error);
+      console.error('❌ Failed to extract semantics:', error);
       // Continue without tags - the thought is still saved
     }
   }, [thoughts, semanticTags, updateSemanticTags]);

@@ -6,15 +6,20 @@ const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
 export async function POST(request: Request) {
   try {
+    console.log('🔥 Claude API route called');
     const { text, existingThoughts = [] } = await request.json();
+    console.log('📝 Input text:', text);
+    console.log('📚 Existing thoughts:', existingThoughts.length);
 
     if (!ANTHROPIC_API_KEY) {
-      console.error('ANTHROPIC_API_KEY is not set');
+      console.error('❌ ANTHROPIC_API_KEY is not set');
       return NextResponse.json(
         { error: 'API key not configured' },
         { status: 500 }
       );
     }
+    
+    console.log('✅ API key found, proceeding with Claude call');
 
     // Prepare context about existing thoughts for connection detection
     const thoughtContext = existingThoughts.length > 0 
@@ -40,6 +45,7 @@ For relatedTags, only include existing tags that share conceptual similarity or 
 
 Respond ONLY with valid JSON, no additional text.`;
 
+    console.log('🚀 Sending request to Claude API...');
     const response = await fetch(ANTHROPIC_API_URL, {
       method: 'POST',
       headers: {
@@ -60,9 +66,11 @@ Respond ONLY with valid JSON, no additional text.`;
       })
     });
 
+    console.log('📡 Claude API response status:', response.status);
+
     if (!response.ok) {
       const error = await response.text();
-      console.error('Anthropic API error:', error);
+      console.error('❌ Anthropic API error:', error);
       return NextResponse.json(
         { error: 'Failed to analyze thought' },
         { status: response.status }
@@ -71,19 +79,24 @@ Respond ONLY with valid JSON, no additional text.`;
 
     const data = await response.json();
     const content = data.content[0].text;
+    console.log('🤖 Claude raw response:', content);
     
     try {
       const parsed = JSON.parse(content);
+      console.log('✅ Successfully parsed Claude response:', parsed);
       return NextResponse.json({
         tags: parsed.tags || [],
         relatedTags: parsed.relatedTags || [],
         summary: parsed.summary || ''
       });
     } catch (parseError) {
-      console.error('Failed to parse Claude response:', content);
+      console.error('❌ Failed to parse Claude response:', content);
+      console.log('🔄 Using fallback tag extraction');
       // Fallback to basic extraction
+      const fallbackTags = extractBasicTags(text);
+      console.log('🏷️ Fallback tags:', fallbackTags);
       return NextResponse.json({
-        tags: extractBasicTags(text),
+        tags: fallbackTags,
         relatedTags: [],
         summary: text.substring(0, 100)
       });
