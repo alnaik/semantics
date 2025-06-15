@@ -1,23 +1,23 @@
 // components/LivingGraph.tsx
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
-import { Thought, GraphNode } from '@/types';
+import { SemanticTag, GraphNode } from '@/types';
 import { RefreshCw } from 'lucide-react';
 
 interface Props {
-  thoughts: Thought[];
-  onBoostThought: (id: string) => void;
+  semanticTags: SemanticTag[];
+  onBoostTag: (id: string) => void;
+  onSelectTag: (id: string) => void;
   onReanalyze?: () => void;
-  onSelectThought?: (id: string) => void;
+  selectedTag?: string | null;
 }
 
-export default function LivingGraph({ thoughts, onBoostThought, onReanalyze, onSelectThought }: Props) {
+export default function LivingGraph({ semanticTags, onBoostTag, onSelectTag, onReanalyze, selectedTag }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
-    if (!svgRef.current || thoughts.length === 0) return;
+    if (!svgRef.current || semanticTags.length === 0) return;
 
     const width = svgRef.current.clientWidth;
     const height = svgRef.current.clientHeight;
@@ -36,17 +36,18 @@ export default function LivingGraph({ thoughts, onBoostThought, onReanalyze, onS
       });
     svg.call(zoom);
 
-    // Create links data
+    // Create links data from semantic tag connections
     const links: any[] = [];
-    thoughts.forEach(thought => {
-      if (thought.connections && thought.connections.length > 0) {
-        thought.connections.forEach(targetId => {
-          const target = thoughts.find(t => t.id === targetId);
+    semanticTags.forEach(tag => {
+      if (tag.connections && tag.connections.length > 0) {
+        tag.connections.forEach(connection => {
+          const target = semanticTags.find(t => t.id === connection.tagId);
           if (target) {
             links.push({
-              source: thought.id,
-              target: targetId,
-              strength: Math.min(thought.atp, target.atp) / 100
+              source: tag.id,
+              target: connection.tagId,
+              strength: connection.strength,
+              coMentions: connection.coMentions
             });
           }
         });
@@ -54,7 +55,7 @@ export default function LivingGraph({ thoughts, onBoostThought, onReanalyze, onS
     });
 
     // Create simulation
-    const simulation = d3.forceSimulation<GraphNode>(thoughts.map(t => ({...t} as GraphNode)))
+    const simulation = d3.forceSimulation<GraphNode>(semanticTags.map(t => ({...t} as GraphNode)))
       .force('link', d3.forceLink<GraphNode, any>(links)
         .id((d: any) => d.id)
         .distance(100)
@@ -68,8 +69,8 @@ export default function LivingGraph({ thoughts, onBoostThought, onReanalyze, onS
       .selectAll('line')
       .data(links)
       .enter().append('line')
-      .attr('stroke', d => `rgba(100, 100, 100, ${d.strength})`)
-      .attr('stroke-width', d => 1 + d.strength * 2);
+      .attr('stroke', d => `rgba(139, 92, 246, ${Math.min(1, d.strength / 5)})`)
+      .attr('stroke-width', d => Math.max(1, Math.min(6, d.strength)));
 
     // Add node groups (circles + labels)
     const nodeGroup = g.append('g')
@@ -78,11 +79,8 @@ export default function LivingGraph({ thoughts, onBoostThought, onReanalyze, onS
       .enter().append('g')
       .style('cursor', 'pointer')
       .on('click', (event: any, d: any) => {
-        onBoostThought(d.id);
-        setSelectedNodes(d.id);
-        if (onSelectThought) {
-          onSelectThought(d.id);
-        }
+        onSelectTag(d.id);
+        onBoostTag(d.id);
       })
       .call(d3.drag<SVGGElement, any>()
         .on('start', dragstarted)
@@ -93,8 +91,8 @@ export default function LivingGraph({ thoughts, onBoostThought, onReanalyze, onS
     const node = nodeGroup.append('circle')
       .attr('r', (d: any) => getNodeRadius(d.atp))
       .attr('fill', (d: any) => getNodeColor(d.atp))
-      .attr('stroke', (d: any) => selectedNodes === d.id ? '#3b82f6' : '#fff')
-      .attr('stroke-width', (d: any) => selectedNodes === d.id ? 4 : 2);
+      .attr('stroke', (d: any) => selectedTag === d.id ? '#8b5cf6' : '#fff')
+      .attr('stroke-width', (d: any) => selectedTag === d.id ? 4 : 2);
 
     // Add primary tag labels
     nodeGroup.append('text')
@@ -105,10 +103,7 @@ export default function LivingGraph({ thoughts, onBoostThought, onReanalyze, onS
       .attr('fill', 'white')
       .attr('pointer-events', 'none')
       .text((d: any) => {
-        if (d.tags && d.tags.length > 0) {
-          return d.tags[0].length > 8 ? d.tags[0].substring(0, 8) + '...' : d.tags[0];
-        }
-        return '';
+        return d.name.length > 8 ? d.name.substring(0, 8) + '...' : d.name;
       });
 
     // Add enhanced tooltip on hover
@@ -132,17 +127,14 @@ export default function LivingGraph({ thoughts, onBoostThought, onReanalyze, onS
         .attr('font-weight', 'bold')
         .text(`ATP: ${d.atp.toFixed(1)}`);
       
-      // Tags line (if any)
-      if (d.tags && d.tags.length > 0) {
-        const tagsText = d.tags.slice(0, 3).join(', ');
-        tooltipGroup.append('text')
-          .attr('x', d.x || 0)
-          .attr('y', (d.y || 0) - getNodeRadius(d.atp) - 10)
-          .attr('text-anchor', 'middle')
-          .attr('font-size', '10px')
-          .attr('fill', '#666')
-          .text(`Tags: ${tagsText.length > 30 ? tagsText.substring(0, 30) + '...' : tagsText}`);
-      }
+      // Thought count line
+      tooltipGroup.append('text')
+        .attr('x', d.x || 0)
+        .attr('y', (d.y || 0) - getNodeRadius(d.atp) - 10)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '10px')
+        .attr('fill', '#666')
+        .text(`Thoughts: ${d.thoughtIds?.length || 0} | Freq: ${d.frequency}`);
     })
     .on('mouseleave', () => {
       tooltip.selectAll('*').remove();
@@ -192,7 +184,7 @@ export default function LivingGraph({ thoughts, onBoostThought, onReanalyze, onS
     return () => {
       simulation.stop();
     };
-  }, [thoughts, onBoostThought, selectedNodes, onSelectThought]);
+  }, [semanticTags, onBoostTag, selectedTag, onSelectTag]);
 
   const getNodeRadius = (atp: number) => {
     return 10 + (atp / 100) * 20;
@@ -214,10 +206,10 @@ export default function LivingGraph({ thoughts, onBoostThought, onReanalyze, onS
   };
 
   return (
-    <div className="h-full bg-gray-100 relative">
-      <div className="absolute top-4 left-4 bg-white rounded-lg shadow-md p-4 z-10">
-        <h3 className="font-bold text-sm mb-2">Living Memory Graph</h3>
-        <div className="space-y-1 text-xs">
+    <div className="h-full bg-gray-800 relative">
+      <div className="absolute top-4 left-4 bg-gray-900 border border-gray-700 rounded-lg shadow-md p-4 z-10">
+        <h3 className="font-bold text-sm mb-2 text-white">Semantic Knowledge Graph</h3>
+        <div className="space-y-1 text-xs text-gray-300">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-green-500 rounded-full"></div>
             <span>Active (ATP 70-100)</span>
@@ -235,13 +227,18 @@ export default function LivingGraph({ thoughts, onBoostThought, onReanalyze, onS
             <span>Fossil (ATP &lt;10)</span>
           </div>
         </div>
-        <div className="mt-2 pt-2 border-t text-xs text-gray-600">
-          Click nodes to boost ATP (+10)
+        <div className="mt-2 pt-2 border-t border-gray-600 text-xs text-gray-400">
+          <div>Click tag: Filter thoughts & boost ATP</div>
+          {selectedTag && (
+            <div className="mt-1 text-purple-400 font-medium">
+              Tag selected
+            </div>
+          )}
         </div>
         {onReanalyze && (
           <button
             onClick={handleReanalyze}
-            disabled={isAnalyzing || thoughts.length < 2}
+            disabled={isAnalyzing || semanticTags.length < 2}
             className="mt-2 flex items-center gap-1 text-xs bg-blue-500 text-white px-3 py-1.5 rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           >
             <RefreshCw className={`w-3 h-3 ${isAnalyzing ? 'animate-spin' : ''}`} />

@@ -8,9 +8,7 @@ export function updateMetabolism(thoughts: Thought[]): Thought[] {
       // Base decay
       newAtp -= 0.5;
       
-      // Connection bonus (thoughts with more connections decay slower)
-      const connectionBonus = thought.connections.length * 0.2;
-      newAtp += connectionBonus;
+      // No connection bonus for thoughts - handled by semantic tags
       
       // Ensure ATP stays within bounds
       newAtp = Math.max(0, Math.min(100, newAtp));

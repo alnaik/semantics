@@ -5,11 +5,26 @@ export interface Thought {
   timestamp: number;
   tags: string[];
   atp: number;
-  connections: string[];
   status: 'active' | 'dying' | 'fossil';
 }
 
-export interface GraphNode extends Thought {
+export interface TagConnection {
+  tagId: string;
+  strength: number;
+  coMentions: number;
+}
+
+export interface SemanticTag {
+  id: string;
+  name: string;
+  thoughtIds: string[];
+  connections: TagConnection[];
+  atp: number;
+  frequency: number;
+  lastMentioned: number;
+}
+
+export interface GraphNode extends SemanticTag {
   x?: number;
   y?: number;
   vx?: number;
