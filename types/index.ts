@@ -8,3 +8,12 @@ export interface Thought {
   connections: string[];
   status: 'active' | 'dying' | 'fossil';
 }
+
+export interface GraphNode extends Thought {
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
+  fx?: number | null;
+  fy?: number | null;
+}
