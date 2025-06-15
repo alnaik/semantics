@@ -69,7 +69,7 @@ export default function LivingGraph({ semanticTags, onBoostTag, onSelectTag, onR
       .selectAll('line')
       .data(links)
       .enter().append('line')
-      .attr('stroke', d => `rgba(139, 92, 246, ${Math.min(1, d.strength / 5)})`)
+      .attr('stroke', d => `rgba(255, 255, 255, ${Math.min(0.8, d.strength / 5)})`)
       .attr('stroke-width', d => Math.max(1, Math.min(6, d.strength)));
 
     // Add node groups (circles + labels)

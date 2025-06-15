@@ -27,62 +27,64 @@ export default function PromptStudio({ thoughts, semanticTags, selectedTag }: Pr
     setIsEnhancing(true);
     
     try {
-      // Create context from high ATP thoughts
-      const highATPThoughts = thoughts
-        .filter(t => t.atp > 50)
-        .sort((a, b) => b.atp - a.atp)
-        .slice(0, 5);
+      // Get high-quality context (active thoughts only, no fossils)
+      let relevantContext: any[] = [];
       
-      const context = relatedThoughts.length > 0 
-        ? relatedThoughts.map(t => ({
-            text: t.text,
-            tags: t.tags,
-            atp: t.atp
-          }))
-        : highATPThoughts.map(t => ({
-            text: t.text,
-            tags: t.tags,
-            atp: t.atp
-          }));
+      if (selectedTag && relatedThoughts.length > 0) {
+        // Use selected tag context, but only active thoughts
+        relevantContext = relatedThoughts
+          .filter(t => t.status !== 'fossil' && t.atp > 30)
+          .sort((a, b) => b.atp - a.atp)
+          .slice(0, 5);
+      } else {
+        // Use highest ATP thoughts across all tags
+        relevantContext = thoughts
+          .filter(t => t.status !== 'fossil' && t.atp > 50)
+          .sort((a, b) => b.atp - a.atp)
+          .slice(0, 8);
+      }
 
-      const response = await fetch('/api/claude', {
+      console.log('🧠 Enhancing prompt with', relevantContext.length, 'high-quality thoughts');
+
+      const response = await fetch('/api/enhance-prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: `Enhance this prompt with relevant context from my thought graph:
-
-Original Prompt: "${originalPrompt}"
-
-Available Context from Thoughts:
-${context.map((t, i) => `${i + 1}. "${t.text}" (Tags: ${t.tags.join(', ')}, ATP: ${t.atp.toFixed(0)})`).join('\n')}
-
-Please create an enhanced version of the original prompt that incorporates relevant insights and context from these thoughts. Make it more specific, detailed, and actionable while maintaining the original intent.
-
-Return only the enhanced prompt, no explanation.`,
-          existingThoughts: []
+          originalPrompt,
+          relevantThoughts: relevantContext.map(t => ({
+            text: t.text,
+            tags: t.tags,
+            atp: t.atp,
+            status: t.status
+          }))
         })
       });
 
       if (response.ok) {
         const data = await response.json();
-        // Extract enhanced prompt from the response
-        const enhanced = data.summary || data.tags?.join(' ') || 'Enhancement failed';
-        setEnhancedPrompt(enhanced);
+        console.log('✨ Prompt enhanced using', data.contextUsed, 'thoughts');
+        setEnhancedPrompt(data.enhancedPrompt);
       } else {
-        throw new Error('Failed to enhance prompt');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to enhance prompt');
       }
     } catch (error) {
-      console.error('Failed to enhance prompt:', error);
-      // Fallback enhancement
-      const contextText = relatedThoughts.length > 0
-        ? relatedThoughts.map(t => t.text).join('. ')
-        : thoughts.slice(0, 3).map(t => t.text).join('. ');
+      console.error('❌ Failed to enhance prompt:', error);
+      // Intelligent fallback - still avoid just appending context
+      const contextInsights = relatedThoughts.length > 0
+        ? relatedThoughts.filter(t => t.atp > 30).slice(0, 3)
+        : thoughts.filter(t => t.atp > 50).slice(0, 3);
       
-      setEnhancedPrompt(`${originalPrompt}\n\nContext: ${contextText}`);
+      if (contextInsights.length > 0) {
+        const insights = contextInsights.map(t => t.text).join(' ');
+        setEnhancedPrompt(`${originalPrompt} Consider these relevant insights: ${insights}`);
+      } else {
+        setEnhancedPrompt(originalPrompt + ' (Note: No high-quality context available for enhancement)');
+      }
     } finally {
       setIsEnhancing(false);
     }
-  }, [originalPrompt, relatedThoughts, thoughts]);
+  }, [originalPrompt, relatedThoughts, thoughts, selectedTag]);
 
   const copyToClipboard = useCallback(async () => {
     try {
@@ -103,29 +105,35 @@ Return only the enhanced prompt, no explanation.`,
           Smart Prompt Studio
         </h2>
         <p className="text-sm text-gray-400 mt-1">
-          Enhance your prompts with context from your thought graph
+          AI-powered prompt enhancement using Claude Opus & your active thoughts
         </p>
       </div>
 
       <div className="flex-1 p-4 space-y-4 overflow-y-auto">
         {/* Selected Context Display */}
-        {selectedTag && (
-          <div className="bg-purple-900/20 border border-purple-700 rounded-lg p-3">
-            <h3 className="text-sm font-medium text-purple-300 mb-2">
-              Selected Tag: {selectedTagData?.name} ({relatedThoughts.length} thoughts)
-            </h3>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
-              {relatedThoughts.slice(0, 3).map(thought => (
-                <div key={thought.id} className="text-xs text-purple-200 bg-purple-800/30 rounded p-2">
-                  <div className="font-medium">{thought.text.slice(0, 100)}...</div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-purple-300">ATP: {thought.atp.toFixed(0)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* Context Quality Indicator */}
+        <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-3">
+          <h3 className="text-sm font-medium text-gray-300 mb-2">
+            Available Context
+          </h3>
+          <div className="text-xs text-gray-400">
+            {selectedTag ? (
+              <div>
+                <span className="text-purple-400">Selected Tag:</span> {selectedTagData?.name}
+                <br />
+                <span className="text-green-400">Active thoughts:</span> {relatedThoughts.filter(t => t.status !== 'fossil' && t.atp > 30).length}
+                <br />
+                <span className="text-gray-500">Fossil thoughts:</span> {relatedThoughts.filter(t => t.status === 'fossil').length} (excluded)
+              </div>
+            ) : (
+              <div>
+                <span className="text-green-400">High-quality thoughts:</span> {thoughts.filter(t => t.status !== 'fossil' && t.atp > 50).length}
+                <br />
+                <span className="text-gray-500">Low-quality thoughts:</span> {thoughts.filter(t => t.status === 'fossil' || t.atp <= 50).length} (excluded)
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Original Prompt Input */}
         <div>
@@ -203,13 +211,18 @@ Return only the enhanced prompt, no explanation.`,
 
         {/* Instructions */}
         <div className="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-600">
-          <h3 className="text-sm font-medium text-gray-300 mb-2">How to use:</h3>
-          <ol className="text-xs text-gray-400 space-y-1">
-            <li>1. Click semantic tags in the graph to select context</li>
-            <li>2. Enter your original prompt</li>
-            <li>3. Click "Enhance Prompt" to add relevant thought context</li>
-            <li>4. Edit and copy the enhanced prompt</li>
-          </ol>
+          <h3 className="text-sm font-medium text-gray-300 mb-2">Claude Opus Enhancement:</h3>
+          <div className="text-xs text-gray-400 space-y-2">
+            <div>• <span className="text-green-400">Smart Context Selection:</span> Only uses high-ATP, active thoughts (no fossils)</div>
+            <div>• <span className="text-purple-400">Intelligent Integration:</span> Blends context naturally into your prompt</div>
+            <div>• <span className="text-blue-400">Enhanced Reasoning:</span> Makes prompts more specific and actionable</div>
+            <div className="pt-2 border-t border-gray-700 mt-3">
+              <div className="font-medium text-gray-300">Usage:</div>
+              <div>1. Optional: Select a semantic tag for focused context</div>
+              <div>2. Write your basic prompt</div>
+              <div>3. Let Claude Opus intelligently enhance it</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
