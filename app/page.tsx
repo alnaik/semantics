@@ -119,7 +119,7 @@ export default function Home() {
       console.error('Failed to extract semantics:', error);
       // Continue without tags - the thought is still saved
     }
-  }, []);
+  }, [thoughts]);
 
   const boostThought = useCallback((id: string) => {
     setThoughts(prev => prev.map(thought => 
@@ -129,13 +129,7 @@ export default function Home() {
     ));
   }, []);
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
-  }
-
-  // Add this to your app/page.tsx after the boostThought function
-
-const reanalyzeConnections = useCallback(async () => {
+  const reanalyzeConnections = useCallback(async () => {
   if (thoughts.length < 2) return;
 
   try {
@@ -181,6 +175,10 @@ const reanalyzeConnections = useCallback(async () => {
         : [...prev, id]
     );
   }, []);
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
