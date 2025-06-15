@@ -27,24 +27,24 @@ export default function PromptStudio({ thoughts, semanticTags, selectedTag }: Pr
     setIsEnhancing(true);
     
     try {
-      // Get high-quality context (active thoughts only, no fossils)
+      // Get relevant context (exclude only fossil thoughts)
       let relevantContext: any[] = [];
       
       if (selectedTag && relatedThoughts.length > 0) {
-        // Use selected tag context, but only active thoughts
+        // Use selected tag context, excluding only fossils
         relevantContext = relatedThoughts
-          .filter(t => t.status !== 'fossil' && t.atp > 30)
+          .filter(t => t.status !== 'fossil') // Include all non-fossil thoughts
           .sort((a, b) => b.atp - a.atp)
-          .slice(0, 5);
+          .slice(0, 6);
       } else {
-        // Use highest ATP thoughts across all tags
+        // Use all non-fossil thoughts, prioritizing higher ATP
         relevantContext = thoughts
-          .filter(t => t.status !== 'fossil' && t.atp > 50)
+          .filter(t => t.status !== 'fossil') // Include low-quality but not fossil
           .sort((a, b) => b.atp - a.atp)
-          .slice(0, 8);
+          .slice(0, 10);
       }
 
-      console.log('🧠 Enhancing prompt with', relevantContext.length, 'high-quality thoughts');
+      console.log('🧠 Enhancing prompt with', relevantContext.length, 'non-fossil thoughts');
 
       const response = await fetch('/api/enhance-prompt', {
         method: 'POST',
@@ -70,10 +70,10 @@ export default function PromptStudio({ thoughts, semanticTags, selectedTag }: Pr
       }
     } catch (error) {
       console.error('❌ Failed to enhance prompt:', error);
-      // Intelligent fallback - still avoid just appending context
+      // Intelligent fallback - include low-quality thoughts too
       const contextInsights = relatedThoughts.length > 0
-        ? relatedThoughts.filter(t => t.atp > 30).slice(0, 3)
-        : thoughts.filter(t => t.atp > 50).slice(0, 3);
+        ? relatedThoughts.filter(t => t.status !== 'fossil').slice(0, 3)
+        : thoughts.filter(t => t.status !== 'fossil').slice(0, 3);
       
       if (contextInsights.length > 0) {
         const insights = contextInsights.map(t => t.text).join(' ');
@@ -121,15 +121,15 @@ export default function PromptStudio({ thoughts, semanticTags, selectedTag }: Pr
               <div>
                 <span className="text-purple-400">Selected Tag:</span> {selectedTagData?.name}
                 <br />
-                <span className="text-green-400">Active thoughts:</span> {relatedThoughts.filter(t => t.status !== 'fossil' && t.atp > 30).length}
+                <span className="text-green-400">Available thoughts:</span> {relatedThoughts.filter(t => t.status !== 'fossil').length}
                 <br />
                 <span className="text-gray-500">Fossil thoughts:</span> {relatedThoughts.filter(t => t.status === 'fossil').length} (excluded)
               </div>
             ) : (
               <div>
-                <span className="text-green-400">High-quality thoughts:</span> {thoughts.filter(t => t.status !== 'fossil' && t.atp > 50).length}
+                <span className="text-green-400">Available thoughts:</span> {thoughts.filter(t => t.status !== 'fossil').length}
                 <br />
-                <span className="text-gray-500">Low-quality thoughts:</span> {thoughts.filter(t => t.status === 'fossil' || t.atp <= 50).length} (excluded)
+                <span className="text-gray-500">Fossil thoughts:</span> {thoughts.filter(t => t.status === 'fossil').length} (excluded)
               </div>
             )}
           </div>
