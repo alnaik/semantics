@@ -207,7 +207,7 @@ export default function LivingGraph({ semanticTags, onBoostTag, onSelectTag, onR
 
   return (
     <div className="h-full bg-gray-800 relative">
-      <div className="absolute top-4 left-4 bg-gray-900 border border-gray-700 rounded-lg shadow-md p-4 z-10">
+      <div className="absolute bottom-4 right-4 bg-gray-900 border border-gray-700 rounded-lg shadow-md p-4 z-10">
         <h3 className="font-bold text-sm mb-2 text-white">Semantic Knowledge Graph</h3>
         <div className="space-y-1 text-xs text-gray-300">
           <div className="flex items-center gap-2">
